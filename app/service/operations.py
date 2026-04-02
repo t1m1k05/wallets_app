@@ -19,21 +19,12 @@ def add_income(operation: OperationRequest):
         wallet = wallets_repository.add_income(db, operation.wallet_name, operation.amount)
         db.commit()
 
-        # Сохраняем транзакцию
-        # transaction = wallets_repository.add_transaction(
-        #     transaction_type="income",
-        #     wallet_name=operation.wallet_name,
-        #     amount=operation.amount,
-        #     description=operation.description
-        # )
-        #
         return {
             'message': "Income added",
             'wallet': operation.wallet_name,
             'amount': operation.amount,
             'description': operation.description,
             'new_balance': wallet.balance,
-            # 'transaction_id': transaction['id']
         }
     finally:
         db.close()
@@ -66,7 +57,7 @@ def add_expense(operation: OperationRequest):
             'wallet': operation.wallet_name,
             'amount': operation.amount,
             'description': operation.description,
-            'new_balance': wallet,
+            'new_balance': wallet.balance,
         }
     finally:
         db.close()

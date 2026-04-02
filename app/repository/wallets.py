@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from decimal import Decimal
 
 from app.models import Wallet
 
@@ -7,7 +8,7 @@ def is_wallet_exist(db: Session, wallet_name: str) -> bool:
     return db.query(Wallet).filter(Wallet.name == wallet_name).first() is not None
 
 
-def add_income(db: Session, wallet_name: str, amount: float) -> Wallet:
+def add_income(db: Session, wallet_name: str, amount: Decimal) -> Wallet:
     wallet = db.query(Wallet).filter(Wallet.name == wallet_name).first()
     wallet.balance += amount
     return wallet
@@ -30,5 +31,5 @@ def get_all_wallets(db: Session) -> list[Wallet]:
 def create_wallet(db: Session, wallet_name: str, amount: float) -> Wallet:
     wallet = Wallet(name=wallet_name, balance=amount)
     db.add(wallet)
-    db.flush(wallet)
+    db.flush()
     return wallet
