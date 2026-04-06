@@ -10,10 +10,10 @@ router = APIRouter()
 
 @router.post('/operations/income')
 def add_income(operation: OperationRequest, db: Session = Depends(get_db)):
-    return operations_service.add_income(operation)
+    return operations_service.add_income(db, operation)
 
 @router.post('/operations/expense')
 def add_expense(operation: OperationRequest, db: Session = Depends(get_db)):
-    return operations_service.add_expense(operation)
+    return operations_service.add_expense(db, operation)
 
 
