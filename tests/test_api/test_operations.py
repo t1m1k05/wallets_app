@@ -1,17 +1,13 @@
 from decimal import Decimal
+from http.client import responses
 
 from app.models import User, Wallet
+from tests.conftest import user_and_wallet
 
 
-def test_add_expense_success(db_session, client):
+def test_add_expense_success(client, user_and_wallet):
     # arrange - подготовь
-    user = User(login='test')
-    db_session.add(user)
-    db_session.flush()
-    wallet = Wallet(name="card", balance=200, user_id=user.id)
-    db_session.add(wallet)
-    db_session.commit()
-    db_session.refresh(wallet)
+    user, wallet = user_and_wallet
 
     # act - выполни
     response = client.post(
@@ -35,16 +31,9 @@ def test_add_expense_success(db_session, client):
     assert Decimal(str(response.json()['new_balance'])) == Decimal(150.0)
 
 
-def test_add_expense_negative_amount(db_session, client):
+def test_add_expense_negative_amount(user_and_wallet, client):
     # arrange - подготовь
-    user = User(login='test')
-    db_session.add(user)
-    db_session.flush()
-    wallet = Wallet(name="card", balance=200, user_id=user.id)
-    db_session.add(wallet)
-    db_session.commit()
-    db_session.refresh(wallet)
-
+    user, wallet = user_and_wallet
 
     # act - выполни
     response = client.post(
@@ -59,15 +48,9 @@ def test_add_expense_negative_amount(db_session, client):
 
     assert response.status_code == 422
 
-def test_add_expense_empty_name(db_session, client):
+def test_add_expense_empty_name(user_and_wallet, client):
     # arrange - подготовь
-    user = User(login='test')
-    db_session.add(user)
-    db_session.flush()
-    wallet = Wallet(name="card", balance=200, user_id=user.id)
-    db_session.add(wallet)
-    db_session.commit()
-    db_session.refresh(wallet)
+    user, wallet = user_and_wallet
 
     # act - выполни
     response = client.post(
@@ -82,12 +65,9 @@ def test_add_expense_empty_name(db_session, client):
 
     assert response.status_code == 422
 
-def test_add_expense_unexist_wallet(db_session, client):
+def test_add_expense_unexist_wallet(user_and_wallet, client):
     # arrange - подготовь
-    user = User(login='test')
-    db_session.add(user)
-    db_session.flush()
-    db_session.commit()
+    user, wallet = user_and_wallet
 
     # act - выполни
     response = client.post(
@@ -120,15 +100,10 @@ def test_add_expense_unauthorized(client):
     assert response.status_code == 401
 
 
-def test_add_expense_not_enough_money(db_session, client):
+def test_add_expense_not_enough_money(user_and_wallet, client):
     # arrange - подготовь
-    user = User(login='test')
-    db_session.add(user)
-    db_session.flush()
-    wallet = Wallet(name="card", balance=200, user_id=user.id)
-    db_session.add(wallet)
-    db_session.commit()
-    db_session.refresh(wallet)
+    user, wallet = user_and_wallet
+
 
     # act - выполни
     response = client.post(
@@ -145,3 +120,27 @@ def test_add_expense_not_enough_money(db_session, client):
     #assert - проверь
 
     assert response.status_code == 400
+
+
+def test_add_income_success(user_and_wallet, client):
+    # arrange
+    user, wallet = user_and_wallet
+
+    # act
+    response = client.post(
+        "api/v1/operations/income",
+        json={
+            'wallet_name': 'card',
+            'amount': 50.0,
+            'description': 'Food'
+        },
+        headers={"Authorization": f'Bearer {user.login}'}
+    )
+
+    # assert
+    assert response.status_code == 200
+    assert response.json()['message'] == 'Income added'
+    assert response.json()['wallet'] == 'card'
+    assert Decimal(str(response.json()['amount'])) == Decimal(50.0)
+    assert response.json()['description'] == "Food"
+    assert Decimal(str(response.json()['new_balance'])) == Decimal(250.0)

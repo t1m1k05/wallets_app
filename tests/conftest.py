@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.database import Base
 from app.dependency import get_db
+from app.models import User, Wallet
 from main import app
 
 TEST_DATABASE_URL = "sqlite:///./test.db"
@@ -42,3 +43,16 @@ def db_session() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+@pytest.fixture
+def user_and_wallet(db_session):
+    user = User(login='test')
+    db_session.add(user)
+    db_session.flush()
+    wallet = Wallet(name="card", balance=200, user_id=user.id)
+    db_session.add(wallet)
+    db_session.commit()
+    db_session.refresh(wallet)
+
+    return user, wallet
