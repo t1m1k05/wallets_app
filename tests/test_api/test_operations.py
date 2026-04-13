@@ -1,7 +1,5 @@
 from decimal import Decimal
-from http.client import responses
 
-from app.models import User, Wallet
 from tests.conftest import user_and_wallet
 
 

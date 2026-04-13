@@ -1,41 +1,39 @@
 from fastapi import HTTPException, Query
 from typing import Annotated
-
+from decimal import Decimal
 from sqlalchemy.orm import Session
 
+from app.enum import CurrencyEnum
 from app.models import User
-from app.schemas import CreateWalletRequests
+from app.schemas import CreateWalletRequests, WalletResponse, TotalBalance
 from app.repository import wallets as wallets_repository
+from app.service import exchange_service
 
 
-def get_balance(db: Session, current_user: User, wallet_name: Annotated[str | None, Query()] = None):
-    # Если имя кошелька не указано - считаем общий баланс
-    if wallet_name is None:
-        wallets = wallets_repository.get_all_wallets(db, current_user.id)
-        return {'total_balance': sum([w.balance for w in wallets])}
-    # Проверяем существует ли запрашиваемый кошелек
-    if not wallets_repository.is_wallet_exist(db, current_user.id, wallet_name=wallet_name):
-        raise HTTPException(
-            status_code=404,
-            detail=f'Wallet {wallet_name} not found'
-        )
+async def get_total_balance(db: Session, current_user: User) -> TotalBalance:
+    wallets = wallets_repository.get_all_wallets(db, current_user.id)
+    total_balance = Decimal(0)
+    for wallet in wallets:
+        if wallet.currency == CurrencyEnum.RUB:
+            total_balance += wallet.balance
+        else:
+            exchange_rate = await exchange_service.get_exchange_rate(wallet.currency, CurrencyEnum.RUB)
+            total_balance += exchange_rate * wallet.balance
 
-    # Возвращаем баланс конкретного кошелька
-    wallet = wallets_repository.get_wallet_balance_by_name(db, current_user.id, wallet_name)
-    return {'wallet': wallet.name, 'balance': wallet.balance}
+    return TotalBalance(total_balance=total_balance)
 
 
-def create_wallet(db: Session, current_user: User, wallet: CreateWalletRequests):
+def create_wallet(db: Session, current_user: User, wallet: CreateWalletRequests) -> WalletResponse:
     if wallets_repository.is_wallet_exist(db, current_user.id, wallet_name=wallet.name):
         raise HTTPException(
             status_code=404,
             detail=f"Wallet '{wallet.name}' already exist"
         )
-    wallet = wallets_repository.create_wallet(db, current_user.id, wallet.name, wallet.initial_balance)
+    wallet = wallets_repository.create_wallet(db, current_user.id, wallet.name, wallet.initial_balance, currency=wallet.currency)
     db.commit()
-    return {
-        'message': f'Wallet {wallet.name} created',
-        'wallet': wallet.name,
-        'balance': wallet.balance
-    }
+    return WalletResponse.model_validate(wallet)
 
+
+def get_all_wallet(db: Session, current_user: User) -> list[WalletResponse]:
+    wallets = wallets_repository.get_all_wallets(db, current_user)
+    return [WalletResponse.model_validate(wallet) for wallet in wallets]
